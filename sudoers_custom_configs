@@ -1,0 +1,5 @@
+Defaults        !tty_tickets
+Defaults        env_reset,timestamp_timeout=60
+Cmnd_Alias      NOPASSWD_COMMANDS = /usr/bin/shutdown, /usr/bin/poweroff, /usr/bin/reboot
+
+%wheel ALL=(ALL) NOPASSWD: NOPASSWD_COMMANDS
