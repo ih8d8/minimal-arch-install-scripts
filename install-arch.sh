@@ -54,7 +54,7 @@ pvcreate /dev/mapper/cryptlvm
 # create logical volume group on the physical volume
 vgcreate vg1 /dev/mapper/cryptlvm
 
-# create logical volume named root on the volume group with 40 GB of the space
+# create logical volume named root on the volume group with 40 GB of space
 lvcreate -L 40G vg1 -n root
 
 # create logical volume named home on the volume group with the rest of the space
@@ -85,7 +85,7 @@ mount "${BOOT_PARTITION}" /mnt/boot
 lsblk
 
 # install necessary packages
-pacstrap -K /mnt base base-devel linux linux-headers linux-lts linux-lts-headers linux-firmware lvm2 vim git networkmanager refind os-prober efibootmgr iwd
+pacstrap -K /mnt base base-devel linux linux-headers linux-lts linux-lts-headers linux-firmware lvm2 vim git networkmanager refind os-prober efibootmgr iwd intel-ucode
 
 # refind-install hook
 cat <<EOF >/etc/pacman.d/hooks/refind.hook
@@ -113,14 +113,19 @@ arch-chroot /mnt ./chroot-script.sh
 LUKS_UUID=$(blkid -s UUID -o value "${NEW_PARTITION}")
 
 # prepare boot options for refind
-BOOT_OPTIONS="cryptdevice=UUID=${LUKS_UUID}:cryptlvm root=/dev/vg1/root"
-
+BLK_OPTIONS="cryptdevice=UUID=${LUKS_UUID}:cryptlvm root=/dev/vg1/root"
+RW_LOGLEVEL_OPTIONS="rw loglevel=3"
+INITRD_OPTIONS="initrd=intel-ucode.img initrd=initramfs-%v.img"
 # configure refind
 cat <<EOF >/mnt/boot/refind_linux.conf
-"Boot with standard options"  "${BOOT_OPTIONS} rw loglevel=3"
-"Boot to single-user mode"    "${BOOT_OPTIONS} rw loglevel=3 single"
-"Boot with minimal options"   "ro ${BOOT_OPTIONS}"
+"Boot with standard options"     "${BLK_OPTIONS} ${RW_LOGLEVEL_OPTIONS} ${INITRD_OPTIONS}"
+"Boot using fallback initramfs"  "${BLK_OPTIONS} ${RW_LOGLEVEL_OPTIONS} initrd=intel-ucode.img initrd=initramfs-%v-fallback.img"
+"Boot to terminal"               "${BLK_OPTIONS} ${RW_LOGLEVEL_OPTIONS} ${INITRD_OPTIONS} systemd.unit=multi-user.target"
+"Boot to single-user mode"       "${BLK_OPTIONS} ${RW_LOGLEVEL_OPTIONS} ${INITRD_OPTIONS} single"
+"Boot with minimal options"      "${BLK_OPTIONS} ${INITRD_OPTIONS} ro"
 EOF
+sed -i 's|#extra_kernel_version_strings|extra_kernel_version_strings|' /mnt/boot/EFI/refind/refind.conf
+sudo sed -i 's|#fold_linux_kernels|fold_linux_kernels|' /mnt/boot/EFI/refind/refind.conf
 
 # unmount partitions
 umount /mnt/home 
